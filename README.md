@@ -26,7 +26,7 @@
 - 버전 및 이슈관리 : Github, Github Issues, Github Project
 - 협업 툴 : Notion, Github Wiki
 - 서비스 배포 환경 : Androide Studio
-- 디자인 : [Figma]()
+- 디자인 : [Figma](https://www.figma.com/design/PNt3yto58PFWTmurFd9G1m/Untitled?node-id=0-1&t=1VgFaGpbp6Wm20c2-0)
 - [커밋 컨벤션]()
 - [코드 컨벤션]()
 <br>
