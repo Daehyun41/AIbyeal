@@ -1,6 +1,5 @@
 import os
 import shutil
-import time
 
 def find_files(directories):
     audio_files = {}
@@ -16,7 +15,7 @@ def find_files(directories):
                 wav_files = []
                 m4a_files = []
                 for file in sorted(files):
-                    if file.lower().endswith('.wav'):
+                    if file.lower().endswith('.wav') and not file.startswith('._'):
                         wav_files.append(os.path.join(root, file))
                     elif file.lower().endswith('.m4a'):
                         m4a_files.append(os.path.join(root, file))
@@ -37,6 +36,11 @@ def save_files_with_structure(audio_files, save_directory, base_directory):
             for file_path in files:
                 relative_path = os.path.relpath(file_path, start=base_directory)
                 target_path = os.path.join(save_directory, relative_path)
+
+                # Check if the source and destination are the same
+                if os.path.abspath(file_path) == os.path.abspath(target_path):
+                    print(f"Skipping copying {file_path} as it is the same as the destination.")
+                    continue
 
                 target_dir = os.path.dirname(target_path)
                 if not os.path.exists(target_dir):
