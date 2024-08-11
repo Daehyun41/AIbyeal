@@ -1,18 +1,17 @@
 """
 Whisper 단계 실험)
 
-1. aihub의 '한국어 아동 음성 데이터'를 바탕으로 STT 인식률 확인
+1. AIHub의 '한국어 아동 음성 데이터'를 바탕으로 STT 인식률 확인
 (link: 'https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=540')
 
-2. youtube의 한국어 아동 영상 샘플을 바탕으로 STT 인식률 확인
+2. YouTube의 한국어 아동 영상 샘플을 바탕으로 STT 인식률 확인
 (마이크에서 바로 송출되는 경우가 아닌, 영상에서 오디오 추출의 경우 시나리오 확인)
 
 3. 실시간 안드로이드 폰에서 영상 촬영/음성 녹음 후 STT 인식률 확인
 (1과 2의 경우, 실시간과 다를 수 있어 실제 즉각적인 환경에서의 시나리오 확인)
 
-***최종적으로 STT 다음 GPT4까지 연결하는 방향까지 완료.
+*** 최종적으로 STT 다음 GPT-4까지 연결하는 방향까지 완료.
 """
-
 
 import os
 import hashlib
@@ -26,12 +25,10 @@ from pydub.playback import play
 from find import find_files, extract_youtube_audio, save_files_with_structure
 from gpt4 import process_with_gpt4_async
 
-
 def generate_unique_filename(base_name, extension):
     timestamp = int(time.time())
     unique_hash = hashlib.md5(base_name.encode()).hexdigest()[:8]
     return f"{base_name}_{unique_hash}_{timestamp}.{extension}"
-
 
 def split_audio(audio_file_path, chunk_length_ms=30000):
     audio = AudioSegment.from_file(audio_file_path)
@@ -42,7 +39,6 @@ def split_audio(audio_file_path, chunk_length_ms=30000):
         chunk.export(chunk_name, format="wav")
         chunks.append(chunk_name)
     return chunks
-
 
 async def transcribe_audio(audio_file_path):
     transcript_text = ""
@@ -60,7 +56,6 @@ async def transcribe_audio(audio_file_path):
     except Exception as e:
         print(f"An error occurred during STT for {audio_file_path}: {e}")
     return transcript_text
-
 
 async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_directory, gpt_results_directory):
     try:
@@ -103,10 +98,9 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
     except Exception as e:
         print(f"An error occurred while processing the YouTube URL {url}: {e}")
 
-
-async def stt_from_aihub_data(dataset_directory, aihub_save_directory, stt_output_directory, gpt_results_directory):
+async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_results_directory):
     audio_files, _ = find_files([dataset_directory])
-    save_files_with_structure(audio_files, aihub_save_directory, dataset_directory)
+    save_files_with_structure(audio_files, dataset_directory, dataset_directory)
     
     for dir_name, files in audio_files.items():
         for audio_file_path in files['wav']:
@@ -138,25 +132,24 @@ async def stt_from_aihub_data(dataset_directory, aihub_save_directory, stt_outpu
 
                 print(f"GPT-4 response for {chunk}:\n{gpt_response}\n")
 
-
 async def main():
+    data_directory = "./aihub_data"
     stt_output_directory = "./stt_results"
     youtube_save_directory = "./youtube_audio_files"
     youtube_stt_output_directory = os.path.join(stt_output_directory, "YouTube")
-    aihub_stt_output_directory = os.path.join(stt_output_directory, "AIHUB")
-    aihub_save_directory = "./aihub_audio_files"
+    aihub_stt_output_directory = os.path.join(stt_output_directory, "AIHub")
     gpt_results_directory = "./gpt_results"
     gpt_youtube_directory = os.path.join(gpt_results_directory, "YouTube")
     gpt_aihub_directory = os.path.join(gpt_results_directory, "AIHub")
+
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
 
     if not os.path.exists(youtube_stt_output_directory):
         os.makedirs(youtube_stt_output_directory)
         
     if not os.path.exists(aihub_stt_output_directory):
         os.makedirs(aihub_stt_output_directory)
-
-    if not os.path.exists(aihub_save_directory):
-        os.makedirs(aihub_save_directory)
 
     if not os.path.exists(gpt_youtube_directory):
         os.makedirs(gpt_youtube_directory)
@@ -170,8 +163,8 @@ async def main():
     choice = input("선택 (1 또는 2): ")
 
     if choice == "1":
-        dataset_directory = "/Users/mingcha/AIbyeal/data/"
-        await stt_from_aihub_data(dataset_directory, aihub_save_directory, stt_output_directory, gpt_aihub_directory)
+        dataset_directory = "./aihub_data/"
+        await stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_aihub_directory)
 
     elif choice == "2":
         youtube_urls = [
@@ -188,4 +181,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
