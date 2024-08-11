@@ -1,4 +1,4 @@
-**New_Samples.zip은 300.00 MB가 넘는 이슈로 업로드할 수 없어 링크로 안내드립니다.
+**New_Sample.zip은 300.00 MB가 넘는 이슈로 업로드할 수 없어 링크로 안내드립니다.
 - Link: https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=540
 - 매우 짧은 시간 안으로 다운로드 되며, AIbyeal에 추가하신 후 python whisper.py 실행하시어, 1 누르시면 자동으로 압축해제 하여 진행됩니다.
   
