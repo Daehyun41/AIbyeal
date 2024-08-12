@@ -1,0 +1,33 @@
+Windows에서 'ffmpeg'와 'ffprobe' 에러가 발생할 수 있습니다.
+
+이를 해결하기 위한 방법을 알려드립니다.
+
+1. 'ffmpeg' 다운로드 및 설치
+- FFmpeg 공식 웹사이트 방문:
+ : https://ffmpeg.org/download.html#build-windows
+
+2. Windows 버전 선택
+- Windows 아이콘 클릭 후, 아래와 같은 옵션 선택
+ : 'Windows builds by Btbn' 링크를 선택
+
+3. ZIP 파일 다운로드
+- ffmpeg-master-latest-win64-gpl.zip 선택
+
+4. 파일 추출
+- 다운로드한 ZIP 파일을 원하는 위치에 압축 해제
+ : 저의 경우, C:\Program Files\ 에 압축 해제
+ : 압축 풀면, 'bin' 폴더 안에 'ffmpeg.exe'와 'ffprobe.exe' 파일이 포함
+
+5.시스템 'PATH' 환경 변수 설정
+- 환경 변수 설정 열기
+- '시스템 속성' 창의 '환경 변수' 클릭
+- 'Path' 변수 편집
+ : '새로 만들기' 버튼 클릭 및 경로 입력 
+ : 저의경우, C:\Program Files\ffmpeg-master-latest-win64-gpl\bin 
+- 확인 버튼 클릭
+
+6. ffmpeg 설치 확인
+- 명령 프롬프트 열기
+ : ffmpeg -version 입력
+ : ffprobe -version 입력
+- 버전 정보 출력되면 설치 성공적
