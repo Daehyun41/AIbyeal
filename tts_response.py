@@ -34,7 +34,7 @@ def classify_image_sentiment(image_path):
 
     return response.choices[0].message.content
 
-def speak(facial_result: str, voice: str = "shimmer", output_filename: str = "output1.mp3"):
+def speak_reward(facial_result: str, voice: str = "shimmer", output_filename: str = "output1.mp3"):
     # 목소리 선택지는 총 6개
     # alloy, echo, fable, nova, onyx, shimmer
 
@@ -61,6 +61,7 @@ def speak(facial_result: str, voice: str = "shimmer", output_filename: str = "ou
     # Save the audio to a file
     response.stream_to_file(speech_file_path)
     print(f"Audio saved as {output_filename}")
+
 
 # Example usage
 if __name__ == "__main__":
