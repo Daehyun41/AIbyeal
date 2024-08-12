@@ -62,9 +62,24 @@ def speak_reward(facial_result: str, voice: str = "shimmer", output_filename: st
     response.stream_to_file(speech_file_path)
     print(f"Audio saved as {output_filename}")
 
+def gpt4o_response():
+    return "정말 좋은 생각이에요!"
+def speak_speech(system_speech: str, voice : str = "shimmer", output_filename: str = "output_response.mp3"):
+
+    # Generate the audio file
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice=voice,
+        input=system_speech
+    )
+    speech_file_path = Path(__file__).parent / output_filename
+
+    response.stream_to_file(speech_file_path)
+    print(f"Audio saved as {output_filename}")
+
 
 # Example usage
 if __name__ == "__main__":
-    facial_result = classify_image_sentiment('Sample_image.jpg')
-    print(facial_result)
-    speak(facial_result)
+    # facial_result = classify_image_sentiment('Sample_image.jpg')
+    # print(facial_result)
+    speak_speech(gpt4o_response())
