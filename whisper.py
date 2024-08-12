@@ -20,30 +20,25 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import shutil
 from pydub import AudioSegment
-import tempfile
 import asyncio
-import multiprocessing
 import aiohttp
 import time
 import zipfile
 import atexit
+import multiprocessing
 from pydub.playback import play
 from find import find_files, extract_youtube_audio, save_files_with_structure
 from gpt4omini import process_with_gpt4omini_async
-
 
 # load openai api key
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-
-
 def generate_unique_filename(base_name, extension):
     timestamp = int(time.time())
     unique_hash = hashlib.md5(base_name.encode()).hexdigest()[:8]
     return f"{base_name}_{unique_hash}_{timestamp}.{extension}"
-
 
 
 def split_audio(audio_file_path, chunk_length_ms=30000):
@@ -57,36 +52,54 @@ def split_audio(audio_file_path, chunk_length_ms=30000):
     return chunks
 
 
-
 async def transcribe_audio(audio_file_path):
     transcript_text = ""
     client = OpenAI()
+    temp_dir = "./temp_files"  # 명시적인 임시 디렉토리 경로 지정
+
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    temp_filename = None  # temp_filename 변수를 초기화합니다.
+
     try:
         print(f"Starting STT for {audio_file_path}...")
 
-        # 지원하는 형식으로 변환: wav와 mp3
-        formats = ["wav", "mp3"]
-        for fmt in formats:
-            with tempfile.NamedTemporaryFile(suffix=f".{fmt}", delete=False) as tmp:
-                audio = AudioSegment.from_file(audio_file_path)
-                audio.export(tmp.name, format=fmt)
-                tmp_path = tmp.name
+        # 오디오 파일을 읽어 확장자에 관계없이 처리
+        audio = AudioSegment.from_file(audio_file_path)
+        start_time = time.time()
 
-            start_time = time.time()
-            with open(tmp_path, "rb") as audio_file:
-                transcript_text = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    response_format="text")
-            end_time = time.time()
-            print(f"STT for {audio_file_path} in {fmt} format took {end_time - start_time:.2f} seconds.")
-            print(f"STT result for {audio_file_path} in {fmt} format:\n{transcript_text}\n")
+        # 명시적으로 지정된 임시 디렉토리에 파일 생성 (모든 파일을 .wav 형식으로 변환)
+        temp_filename = os.path.join(temp_dir, f"{os.path.basename(audio_file_path)}.wav")
+        audio.export(temp_filename, format="wav")
 
+        # 임시 파일을 열어 STT 요청을 처리
+        with open(temp_filename, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="text"
+            )
+            transcript_text = transcript
+
+        end_time = time.time()
+        print(f"STT for {audio_file_path} took {end_time - start_time:.2f} seconds.")
+        print(f"STT result for {audio_file_path}:\n{transcript_text}\n")
+
+    except PermissionError:
+        print(f"Permission denied error occurred while accessing {audio_file_path}.")
     except Exception as e:
         print(f"An error occurred during STT for {audio_file_path}: {e}")
+    finally:
+        # 임시 파일 삭제
+        if temp_filename and os.path.exists(temp_filename):
+            try:
+                os.remove(temp_filename)
+            except Exception as e:
+                print(f"Failed to remove temp file {temp_filename}: {e}")
+
     return transcript_text
 
- 
 
 
 async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_directory, gpt_results_directory):
@@ -129,6 +142,8 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
             print("Failed to extract audio from YouTube.")
     except Exception as e:
         print(f"An error occurred while processing the YouTube URL {url}: {e}")
+
+
 
 async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_results_directory):
     audio_files, _ = find_files([dataset_directory])
