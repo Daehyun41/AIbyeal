@@ -23,6 +23,7 @@ from pydub import AudioSegment
 import asyncio
 import aiohttp
 import time
+import zipfile
 from pydub.playback import play
 from find import find_files, extract_youtube_audio, save_files_with_structure
 from gpt4omini import process_with_gpt4omini_async
@@ -171,6 +172,7 @@ async def main():
     gpt_results_directory = "./gpt_results"
     gpt_youtube_directory = os.path.join(gpt_results_directory, "YouTube")
     gpt_aihub_directory = os.path.join(gpt_results_directory, "AIHub")
+    sample_zip_path = "./New_Sample.zip"
 
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
@@ -187,13 +189,18 @@ async def main():
     if not os.path.exists(gpt_aihub_directory):
         os.makedirs(gpt_aihub_directory)
 
+
+    unzip_sample_data(sample_zip_path, data_directory)
+
+
     print("실행할 작업을 선택하세요:")
     print("1: AIHub의 한국어 아동 음성 데이터 STT")
     print("2: 유튜브의 한국어 아동 영상 샘플 STT")
     choice = input("선택 (1 또는 2): ")
 
+    
     if choice == "1":
-        unzip_sample_data(sample_zip_path, data_directory)
+
         dataset_directory = "./aihub_data/"
         await stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_aihub_directory)
 
