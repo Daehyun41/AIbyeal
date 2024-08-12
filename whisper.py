@@ -16,6 +16,8 @@ Whisper 단계 실험)
 import os
 import hashlib
 import openai
+from dotenv import load_dotenv
+from openai import OpenAI
 import shutil
 from pydub import AudioSegment
 import asyncio
@@ -23,12 +25,22 @@ import aiohttp
 import time
 from pydub.playback import play
 from find import find_files, extract_youtube_audio, save_files_with_structure
-from gpt4 import process_with_gpt4_async
+from gpt4omini import process_with_gpt4omini_async
+
+
+# load openai api key
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+
+
 
 def generate_unique_filename(base_name, extension):
     timestamp = int(time.time())
     unique_hash = hashlib.md5(base_name.encode()).hexdigest()[:8]
     return f"{base_name}_{unique_hash}_{timestamp}.{extension}"
+
+
 
 def split_audio(audio_file_path, chunk_length_ms=30000):
     audio = AudioSegment.from_file(audio_file_path)
@@ -40,22 +52,29 @@ def split_audio(audio_file_path, chunk_length_ms=30000):
         chunks.append(chunk_name)
     return chunks
 
+
+
 async def transcribe_audio(audio_file_path):
     transcript_text = ""
+    client = OpenAI()
     try:
         print(f"Starting STT for {audio_file_path}...")
         audio = AudioSegment.from_file(audio_file_path)
         play(audio)  # STT를 시작하면서 오디오 파일 재생
         start_time = time.time()
         with open(audio_file_path, "rb") as audio_file:
-            transcript = openai.Audio.transcribe("whisper-1", audio_file)
-            transcript_text = transcript['text'].encode('utf-8', 'ignore').decode('utf-8')
+            transcript_text = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="text")
         end_time = time.time()
         print(f"STT for {audio_file_path} took {end_time - start_time:.2f} seconds.")
         print(f"STT result for {audio_file_path}:\n{transcript_text}\n")
     except Exception as e:
         print(f"An error occurred during STT for {audio_file_path}: {e}")
     return transcript_text
+
+
 
 async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_directory, gpt_results_directory):
     try:
@@ -81,7 +100,7 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
                 with open(transcript_file, "w", encoding="utf-8") as f:
                     f.write(transcript)
 
-                gpt_response = await process_with_gpt4_async(transcript)
+                gpt_response = await process_with_gpt4omini_async(transcript)
                 gpt_file_dir = os.path.join(gpt_results_directory, os.path.dirname(relative_chunk_path))
                 if not os.path.exists(gpt_file_dir):
                     os.makedirs(gpt_file_dir)
@@ -90,7 +109,7 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
                 with open(gpt_file, "w", encoding="utf-8") as f:
                     f.write(gpt_response)
 
-                print(f"GPT-4 response for {chunk}:\n{gpt_response}\n")
+                print(f"GPT-4oMini response for {chunk}:\n{gpt_response}\n")
 
             return full_transcript
         else:
@@ -121,7 +140,7 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                 with open(transcript_file, "w", encoding="utf-8") as f:
                     f.write(transcript)
 
-                gpt_response = await process_with_gpt4_async(transcript)
+                gpt_response = await process_with_gpt4omini_async(transcript)
                 gpt_file_dir = os.path.join(gpt_results_directory, "AIHub", os.path.dirname(relative_chunk_path))
                 if not os.path.exists(gpt_file_dir):
                     os.makedirs(gpt_file_dir)
@@ -130,7 +149,18 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                 with open(gpt_file, "w", encoding="utf-8") as f:
                     f.write(gpt_response)
 
-                print(f"GPT-4 response for {chunk}:\n{gpt_response}\n")
+                print(f"GPT-4oMini response for {chunk}:\n{gpt_response}\n")
+
+
+def unzip_sample_data(zip_file_path, extract_to):
+    if os.path.exists(zip_file_path):
+        with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_to)
+            print(f"Extracted {zip_file_path} to {extract_to}.")
+    else:
+        print(f"Zip file {zip_file_path} does not exist.")
+
+
 
 async def main():
     data_directory = "./aihub_data"
@@ -163,6 +193,7 @@ async def main():
     choice = input("선택 (1 또는 2): ")
 
     if choice == "1":
+        unzip_sample_data(sample_zip_path, data_directory)
         dataset_directory = "./aihub_data/"
         await stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_aihub_directory)
 
