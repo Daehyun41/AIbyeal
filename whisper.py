@@ -20,10 +20,13 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import shutil
 from pydub import AudioSegment
+import tempfile
 import asyncio
+import multiprocessing
 import aiohttp
 import time
 import zipfile
+import atexit
 from pydub.playback import play
 from find import find_files, extract_youtube_audio, save_files_with_structure
 from gpt4omini import process_with_gpt4omini_async
@@ -60,21 +63,30 @@ async def transcribe_audio(audio_file_path):
     client = OpenAI()
     try:
         print(f"Starting STT for {audio_file_path}...")
-        audio = AudioSegment.from_file(audio_file_path)
-        play(audio)  # STT를 시작하면서 오디오 파일 재생
-        start_time = time.time()
-        with open(audio_file_path, "rb") as audio_file:
-            transcript_text = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text")
-        end_time = time.time()
-        print(f"STT for {audio_file_path} took {end_time - start_time:.2f} seconds.")
-        print(f"STT result for {audio_file_path}:\n{transcript_text}\n")
+
+        # 지원하는 형식으로 변환: wav와 mp3
+        formats = ["wav", "mp3"]
+        for fmt in formats:
+            with tempfile.NamedTemporaryFile(suffix=f".{fmt}", delete=False) as tmp:
+                audio = AudioSegment.from_file(audio_file_path)
+                audio.export(tmp.name, format=fmt)
+                tmp_path = tmp.name
+
+            start_time = time.time()
+            with open(tmp_path, "rb") as audio_file:
+                transcript_text = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    response_format="text")
+            end_time = time.time()
+            print(f"STT for {audio_file_path} in {fmt} format took {end_time - start_time:.2f} seconds.")
+            print(f"STT result for {audio_file_path} in {fmt} format:\n{transcript_text}\n")
+
     except Exception as e:
         print(f"An error occurred during STT for {audio_file_path}: {e}")
     return transcript_text
 
+ 
 
 
 async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_directory, gpt_results_directory):
@@ -153,17 +165,32 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                 print(f"GPT-4oMini response for {chunk}:\n{gpt_response}\n")
 
 
+
 def unzip_sample_data(zip_file_path, extract_to):
     if os.path.exists(zip_file_path):
         with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
+            for member in zip_ref.infolist():
+                try:
+                    # 먼저 기본적으로 CP437에서 UTF-8로 디코딩 시도
+                    decoded_name = member.filename.encode('cp437').decode('utf-8')
+                except UnicodeDecodeError:
+                    # 실패하면 EUC-KR 등의 다른 인코딩을 시도
+                    try:
+                        decoded_name = member.filename.encode('cp437').decode('euc-kr')
+                    except UnicodeDecodeError:
+                        print(f"파일 이름 디코딩 실패: {member.filename}")
+                        decoded_name = member.filename  # 디코딩 실패 시 원래 이름 사용
+
+                member.filename = decoded_name
+                zip_ref.extract(member, extract_to)
             print(f"Extracted {zip_file_path} to {extract_to}.")
     else:
         print(f"Zip file {zip_file_path} does not exist.")
 
 
 
-async def main():
+
+async def main(choice):
     data_directory = "./aihub_data"
     stt_output_directory = "./stt_results"
     youtube_save_directory = "./youtube_audio_files"
@@ -190,32 +217,39 @@ async def main():
         os.makedirs(gpt_aihub_directory)
 
 
-    unzip_sample_data(sample_zip_path, data_directory)
-
-
-    print("실행할 작업을 선택하세요:")
-    print("1: AIHub의 한국어 아동 음성 데이터 STT")
-    print("2: 유튜브의 한국어 아동 영상 샘플 STT")
-    choice = input("선택 (1 또는 2): ")
-
-    
     if choice == "1":
-
+        unzip_sample_data(sample_zip_path, data_directory)
         dataset_directory = "./aihub_data/"
         await stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_aihub_directory)
-
     elif choice == "2":
         youtube_urls = [
             'https://youtu.be/0wFag0_WcaU?si=od8VkB5r1dQhByLW',
             'https://youtu.be/SKL7PbAxveE?si=e8eeT2EepJ3mmiqu'
         ]
-
         async with aiohttp.ClientSession() as session:
             for url in youtube_urls:
                 await process_youtube_url(url, youtube_save_directory, youtube_stt_output_directory, gpt_youtube_directory)
-        
     else:
         print("잘못된 선택입니다. 프로그램을 종료합니다.")
 
+
+def run_asyncio(choice):
+    loop = asyncio.ProactorEventLoop()
+    asyncio.set_event_loop(loop)
+
+    def shutdown():
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
+
+    atexit.register(shutdown)
+    loop.run_until_complete(main(choice))
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("실행할 작업을 선택하세요:")
+    print("1: AIHub의 한국어 아동 음성 데이터 STT")
+    print("2: 유튜브의 한국어 아동 영상 샘플 STT")
+    choice = input("선택 (1 또는 2): ")
+
+    p = multiprocessing.Process(target=run_asyncio, args=(choice,))
+    p.start()
+    p.join()
