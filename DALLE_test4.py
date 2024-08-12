@@ -10,13 +10,13 @@ client = openai.OpenAI(api_key="API_KEY")
 
 # 좋아하는 캐릭터와 상황을 변수로 설정
 character = "뽀로로를 닮은 펭귄 캐릭터"
-scenario = "친구들과 스키를 타며 놀고 있는 상황"
+scenario = "친구들과 스키를 타며 즐겁게 놀고 있는 상황"
 
 
 # 대사를 자동 생성하기 위한 함수
 def generate_dialogue(scenario, num_lines=4):
     # 대화 생성 프롬프트
-    dialogue_prompt = f"Generate {num_lines} lines of dialogue for a scenario where {scenario}."
+    dialogue_prompt = f"{scenario}에 대한 아동이 이해할 수 있는 완전한 문장의 {num_lines}개의 대사를 생성하세요. 각 대사는 줄바꿈으로 구분되어야 하고, 완성된 문장으로 서로 주고받는 4개의 문장이 꼭 생성되어야 합니다. dialogue list의 인자는 꼭 4개여야 합니다."
 
     # GPT-4 모델을 사용하여 대사 생성
     response = client.chat.completions.create(
