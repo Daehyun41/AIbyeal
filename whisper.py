@@ -249,15 +249,14 @@ async def main(choice):
 
 
 def run_asyncio(choice):
-    loop = asyncio.ProactorEventLoop()
+    loop = asyncio.SelectorEventLoop()
     asyncio.set_event_loop(loop)
 
-    def shutdown():
+    try:
+        loop.run_until_complete(main(choice))
+    finally:
         loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
-
-    atexit.register(shutdown)
-    loop.run_until_complete(main(choice))
 
 if __name__ == "__main__":
     print("실행할 작업을 선택하세요:")
