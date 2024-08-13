@@ -135,8 +135,6 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
                 with open(gpt_file, "w", encoding="utf-8") as f:
                     f.write(gpt_response)
 
-                print(f"GPT-4oMini response for {chunk}:\n{gpt_response}\n")
-
             return full_transcript
         else:
             print("Failed to extract audio from YouTube.")
@@ -176,9 +174,6 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                 gpt_file = os.path.join(gpt_file_dir, os.path.basename(chunk).replace(".wav", "_gpt.txt"))
                 with open(gpt_file, "w", encoding="utf-8") as f:
                     f.write(gpt_response)
-
-                print(f"GPT-4oMini response for {chunk}:\n{gpt_response}\n")
-
 
 
 def unzip_sample_data(zip_file_path, extract_to):
