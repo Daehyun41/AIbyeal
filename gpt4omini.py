@@ -35,15 +35,17 @@ async def process_with_gpt4omini_async(text):
 
                     # 그 후에 조건에 따라 추가 메시지를 출력
                     if result == '긍정':
-                        print('상황에 적절한 답변입니다. 아주 잘했어요!')
+                        reward = '상황에 적절한 답변입니다. 아주 잘했어요!'
+                        print(reward)
                     elif result == '중립':
-                        print('상황에 보다 적극적인 답변을 해주세요!')
+                        reward = '상황에 보다 적극적인 답변을 해주세요!'
+                        print(reward)
                     elif result == '부정':
-                        print('좀더 긍정적인 답변을 해보아요!')
+                        reward = '좀더 긍정적인 답변을 해보아요!'
                     else:
                         print('알 수 없는 응답입니다:', result)
 
-                    return result
+                    return result, reward
                 else:
                     return f"GPT-4o Mini API 요청 중 오류가 발생했습니다: {response.status}"
     except Exception as e:
