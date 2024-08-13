@@ -126,7 +126,7 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
                 with open(transcript_file, "w", encoding="utf-8") as f:
                     f.write(transcript)
 
-                gpt_response = await process_with_gpt4omini_async(transcript)
+                gpt_response, gpt_reward = await process_with_gpt4omini_async(transcript)
                 gpt_file_dir = os.path.join(gpt_results_directory, os.path.dirname(relative_chunk_path))
                 if not os.path.exists(gpt_file_dir):
                     os.makedirs(gpt_file_dir)
@@ -134,7 +134,9 @@ async def process_youtube_url(url, youtube_save_directory, youtube_stt_output_di
                 gpt_file = os.path.join(gpt_file_dir, os.path.basename(chunk).replace(".wav", "_gpt.txt"))
                 with open(gpt_file, "w", encoding="utf-8") as f:
                     f.write(gpt_response)
-
+                    f.write("\n")
+                    f.write(gpt_reward)
+                    
             return full_transcript
         else:
             print("Failed to extract audio from YouTube.")
@@ -166,7 +168,7 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                 with open(transcript_file, "w", encoding="utf-8") as f:
                     f.write(transcript)
 
-                gpt_response = await process_with_gpt4omini_async(transcript)
+                gpt_response, gpt_reward = await process_with_gpt4omini_async(transcript)
                 gpt_file_dir = os.path.join(gpt_results_directory, "AIHub", os.path.dirname(relative_chunk_path))
                 if not os.path.exists(gpt_file_dir):
                     os.makedirs(gpt_file_dir)
@@ -174,6 +176,8 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                 gpt_file = os.path.join(gpt_file_dir, os.path.basename(chunk).replace(".wav", "_gpt.txt"))
                 with open(gpt_file, "w", encoding="utf-8") as f:
                     f.write(gpt_response)
+                    f.write("\n")
+                    f.write(gpt_reward)
 
 
 def unzip_sample_data(zip_file_path, extract_to):
