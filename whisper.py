@@ -23,22 +23,16 @@ from pydub import AudioSegment
 import asyncio
 import aiohttp
 import time
-import zipfile
 import atexit
 import multiprocessing
-from pydub.playback import play
 from find import find_files, extract_youtube_audio, save_files_with_structure
-from gpt4omini import process_with_gpt4omini_async
+from gpt4omini_whisper import process_with_gpt4omini_async
+from utils import unzip_sample_data, generate_unique_filename
+
 
 # load openai api key
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-
-def generate_unique_filename(base_name, extension):
-    timestamp = int(time.time())
-    unique_hash = hashlib.md5(base_name.encode()).hexdigest()[:8]
-    return f"{base_name}_{unique_hash}_{timestamp}.{extension}"
 
 
 def split_audio(audio_file_path, chunk_length_ms=30000):
@@ -178,28 +172,6 @@ async def stt_from_aihub_data(dataset_directory, stt_output_directory, gpt_resul
                     f.write(gpt_response)
                     f.write("\n")
                     f.write(gpt_reward)
-
-
-def unzip_sample_data(zip_file_path, extract_to):
-    if os.path.exists(zip_file_path):
-        with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-            for member in zip_ref.infolist():
-                try:
-                    # 먼저 기본적으로 CP437에서 UTF-8로 디코딩 시도
-                    decoded_name = member.filename.encode('cp437').decode('utf-8')
-                except UnicodeDecodeError:
-                    # 실패하면 EUC-KR 등의 다른 인코딩을 시도
-                    try:
-                        decoded_name = member.filename.encode('cp437').decode('euc-kr')
-                    except UnicodeDecodeError:
-                        print(f"파일 이름 디코딩 실패: {member.filename}")
-                        decoded_name = member.filename  # 디코딩 실패 시 원래 이름 사용
-
-                member.filename = decoded_name
-                zip_ref.extract(member, extract_to)
-            print(f"Extracted {zip_file_path} to {extract_to}.")
-    else:
-        print(f"Zip file {zip_file_path} does not exist.")
 
 
 
