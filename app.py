@@ -3,8 +3,6 @@ import sys
 
 # Suppress TensorFlow informational, warning, and error logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-# Set the environment variable to disable oneDNN optimizations
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import random
@@ -23,95 +21,108 @@ from PIL import Image
 from utils import generate_unique_filename, unzip_image_set
 from tts_response import speak_reward, speak_speech  # tts_response.py에서 가져옴
 
-
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Suppress all exceptions from showing up
+def silent_excepthook(exc_type, exc_value, exc_traceback):
+    pass
+
+sys.excepthook = silent_excepthook
+
 async def make_personalization(chosen):
-    characters = ['Heartsping', 'Pinkpong', 'Poly', 'Pororo']
-    character_root_path = os.path.join('image_set', 'characters', chosen)
-    
-    if chosen in characters:
-        scenarios = {0: 'Public_Transportation', 1: 'Restaurant', 2: 'School'}
-        reactions = {0: 'Positive', 1: 'Neutral', 2: 'Negative'}
-        
-        chosen_scenario = random.randint(0, 2)
-        chosen_reaction = random.randint(0, 2)
-        
-        directory = os.path.join(character_root_path, scenarios[chosen_scenario], reactions[chosen_reaction])
-        
-        valid_images = lambda x: x.lower().endswith(('.png', '.jpg', '.jpeg'))
-        
-        if os.path.exists(directory):
-            images = sorted([os.path.join(directory, img) for img in os.listdir(directory) if valid_images(img)])
-            if len(images) >= 4:
-                print(f"Chosen directory is: {directory}")
-                return images[:4], chosen, scenarios[chosen_scenario], reactions[chosen_reaction]
+    try:
+        characters = ['Heartsping', 'Pinkpong', 'Poly', 'Pororo']
+        character_root_path = os.path.join('image_set', 'characters', chosen)
+
+        if chosen in characters:
+            scenarios = {0: 'Public_Transportation', 1: 'Restaurant', 2: 'School'}
+            reactions = {0: 'Positive', 1: 'Neutral', 2: 'Negative'}
+
+            chosen_scenario = random.randint(0, 2)
+            chosen_reaction = random.randint(0, 2)
+
+            directory = os.path.join(character_root_path, scenarios[chosen_scenario], reactions[chosen_reaction])
+
+            valid_images = lambda x: x.lower().endswith(('.png', '.jpg', '.jpeg'))
+
+            if os.path.exists(directory):
+                images = sorted([os.path.join(directory, img) for img in os.listdir(directory) if valid_images(img)])
+                if len(images) >= 4:
+                    print(f"Chosen directory is: {directory}")
+                    return images[:4], chosen, scenarios[chosen_scenario], reactions[chosen_reaction]
+                else:
+                    print(f"Not enough images in {directory}. Finding other directories...")
             else:
-                print(f"Not enough images in {directory}. Finding other directories...")
+                print(f"Directory does not exist: {directory}")
+
+            all_images = []
+            for scenario in scenarios.values():
+                for reaction in reactions.values():
+                    dir_path = os.path.join(character_root_path, scenario, reaction)
+                    if os.path.exists(dir_path):
+                        images = sorted([os.path.join(dir_path, img) for img in os.listdir(dir_path) if valid_images(img)])
+                        if len(images) >= 4:
+                            return images[:4], chosen, scenario, reaction
+                        all_images.extend(images)
+
+            if len(all_images) >= 4:
+                return sorted(random.sample(all_images, 4)), chosen, scenario, reaction
+            else:
+                print("Not enough images found across all directories.")
+                return [], None, None, None
         else:
-            print(f"Directory does not exist: {directory}")
-        
-        all_images = []
-        for scenario in scenarios.values():
-            for reaction in reactions.values():
-                dir_path = os.path.join(character_root_path, scenario, reaction)
-                if os.path.exists(dir_path):
-                    images = sorted([os.path.join(dir_path, img) for img in os.listdir(dir_path) if valid_images(img)])
-                    if len(images) >= 4:
-                        return images[:4], chosen, scenario, reaction
-                    all_images.extend(images)
-        
-        if len(all_images) >= 4:
-            return sorted(random.sample(all_images, 4)), chosen, scenario, reaction
-        else:
-            print("Not enough images found across all directories.")
+            print("Invalid character chosen.")
             return [], None, None, None
-    else:
-        print("Invalid character chosen.")
+    except Exception as e:
+        print(f"An error occurred in make_personalization: {e}")
         return [], None, None, None
 
 def capture_look(character, scenario, reaction, capture_files_directory="capture_files"):
-    cap = cv2.VideoCapture(0)
-    if cap.isOpened():
-        # Create directory structure based on character, scenario, and reaction
-        save_directory = os.path.join(capture_files_directory, character, scenario, reaction)
-        if not os.path.exists(save_directory):
-            os.makedirs(save_directory)
+    try:
+        cap = cv2.VideoCapture(0)
+        if cap.isOpened():
+            # Create directory structure based on character, scenario, and reaction
+            save_directory = os.path.join(capture_files_directory, character, scenario, reaction)
+            if not os.path.exists(save_directory):
+                os.makedirs(save_directory)
 
-        fps = 1  # Frames per second (1 frame per second for simplicity)
-        frame_count = 10  # Total frames to capture
-        interval = int(1000 / fps)  # Interval in milliseconds
+            fps = 1  # Frames per second (1 frame per second for simplicity)
+            frame_count = 10  # Total frames to capture
+            interval = int(1000 / fps)  # Interval in milliseconds
 
-        captured_frames = 0
-        while captured_frames < frame_count:
-            ret, img = cap.read()
-            if ret:
-                # Save the frame as an image file
-                img_filename = generate_unique_filename(f"capture_{captured_frames + 1}", "jpg")
-                img_filepath = os.path.join(save_directory, img_filename)
-                cv2.imwrite(img_filepath, img)
+            captured_frames = 0
+            while captured_frames < frame_count:
+                ret, img = cap.read()
+                if ret:
+                    # Save the frame as an image file
+                    img_filename = generate_unique_filename(f"capture_{captured_frames + 1}", "jpg")
+                    img_filepath = os.path.join(save_directory, img_filename)
+                    cv2.imwrite(img_filepath, img)
 
-                # Display the image on the window
-                cv2.imshow('Capturing Look', img)
+                    # Display the image on the window
+                    cv2.imshow('Capturing Look', img)
 
-                captured_frames += 1
-                print(f"Captured frame {captured_frames} as {img_filepath}")
+                    captured_frames += 1
+                    print(f"Captured frame {captured_frames} as {img_filepath}")
 
-                if cv2.waitKey(interval) != -1:
+                    if cv2.waitKey(interval) != -1:
+                        break
+                else:
+                    print('Failed to capture image!')
                     break
-            else:
-                print('Failed to capture image!')
-                break
 
-        # Close the window after capturing
-        cv2.destroyAllWindows()
-    else:
-        print("Can't open camera!")
+            # Close the window after capturing
+            cv2.destroyAllWindows()
+        else:
+            print("Can't open camera!")
 
-    cap.release()
+        cap.release()
 
-    return save_directory
+        return save_directory
+    except Exception as e:
+        print(f"An error occurred in capture_look: {e}")
+        return None
 
 async def record_audio(duration=10, samplerate=44100, channels=2, audio_save_directory="./image_net_audio", image_path=None):
     try:
@@ -146,7 +157,7 @@ async def record_audio(duration=10, samplerate=44100, channels=2, audio_save_dir
         return temp_audio_file_path
     except Exception as e:
         print(f"An error occurred during recording: {e}")
-        sys.exit(1)
+        return None
 
 async def main(chosen):
     try:
@@ -184,6 +195,11 @@ async def main(chosen):
         # 사용자의 표정 녹화 촬영 및 이미지 분할 저장
         capture_directory = capture_look(character, scenario, reaction)
         
+        if capture_directory is None:
+            print("Error during image capture.")
+            return
+        
+        # ###################################################
         # # 캡처된 이미지를 기반으로 감정 인식 및 GPT-4oMini 분석
         # capture_images = sorted([os.path.join(capture_directory, img) for img in os.listdir(capture_directory) if img.lower().endswith(('.jpg', '.jpeg', '.png'))])
         # expectation_results = [reaction] * len(capture_images)  # 예상 결과를 모든 이미지에 대해 동일하게 설정
@@ -200,30 +216,29 @@ async def main(chosen):
         print("Prepare to record audio for the final image.")     
         audio_file_path = await record_audio(duration=10, image_path=last_image_in_directory)  # 10초 동안 자동으로 녹음
         
-        # 녹음된 오디오 파일을 Whisper와 GPT-4oMini로 처리
-        if os.path.exists(audio_file_path):
-            transcript = await transcribe_audio(audio_file_path)
-            
-            combined_input = f"Scenario: {scenario}, Reaction: {reaction}, Situation: {scenario}, Transcript: {transcript}"
-            
-            # GPT-4oMini Whisper 분석
-            gpt_response, gpt_reward = await whisper_process(combined_input)
-            
-            # GPT-4oMini 결과에 관한 TTS 진행 및 저장
-            speak_speech(gpt_reward, character, scenario, reaction)
-            
-            # GPT-4oMini 결과에 관한 파일 저장
-            gpt_file_dir = os.path.join(whisper_result_subdir, f"{generate_unique_filename('whisper_result', 'txt')}")
-            with open(gpt_file_dir, "w", encoding="utf-8") as f:
-                f.write(gpt_response)
-                f.write("\n")
-                f.write(gpt_reward)
-        else:
-            print(f"Audio file not found for the final image: {last_image_in_directory}")
+        if audio_file_path is None:
+            print("Audio recording failed.")
+            return
         
+        # 녹음된 오디오 파일을 Whisper와 GPT-4oMini로 처리
+        transcript = await transcribe_audio(audio_file_path)
+        
+        combined_input = f"Scenario: {scenario}, Reaction: {reaction}, Situation: {scenario}, Transcript: {transcript}"
+        
+        # GPT-4oMini Whisper 분석
+        gpt_response, gpt_reward = await whisper_process(combined_input)
+        
+        # GPT-4oMini 결과에 관한 TTS 진행 및 저장
+        speak_speech(gpt_reward, character, scenario, reaction)
+        
+        # GPT-4oMini 결과에 관한 파일 저장
+        gpt_file_dir = os.path.join(whisper_result_subdir, f"{generate_unique_filename('whisper_result', 'txt')}")
+        with open(gpt_file_dir, "w", encoding="utf-8") as f:
+            f.write(gpt_response)
+            f.write("\n")
+            f.write(gpt_reward)
     except Exception as e:
         print(f"An error occurred: {e}")
-        sys.exit(1)
 
 def run_asyncio(choice):
     loop = asyncio.SelectorEventLoop()
@@ -234,21 +249,19 @@ def run_asyncio(choice):
     except Exception as e:
         print(f"An error occurred in asyncio loop: {e}")
     finally:
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.close()
-
-def handle_process_exception(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-    else:
-        print(f"Exception ignored in multiprocessing: {exc_value}")
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception as shutdown_error:
+            print(f"An error occurred during loop shutdown: {shutdown_error}")
+        finally:
+            loop.close()
 
 if __name__ == "__main__":
-    sys.excepthook = handle_process_exception
-
     print("캐릭터를 선택하세요:")
     chosen = input("선택 ('Heartsping', 'Pinkpong', 'Poly' 또는 'Pororo'): ")
 
     p = multiprocessing.Process(target=run_asyncio, args=(chosen,))
     p.start()
+    print("Process started")
     p.join()
+    print("Process finished")
